@@ -15,8 +15,8 @@ import exceptions
 load_dotenv()
 logger = logging.getLogger(__name__)
 
-PRACTICUM_TOKEN = os.getenv('PRACTICUM')
-TELEGRAM_TOKEN = os.getenv('TELEGRAM')
+PRACTICUM_TOKEN = os.getenv('PRACTICUM_TOKEN')
+TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
 TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
 
 RETRY_PERIOD = 600
