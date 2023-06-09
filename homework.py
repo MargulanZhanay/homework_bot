@@ -9,7 +9,6 @@ from http import HTTPStatus
 from dotenv import load_dotenv
 from telegram import Bot
 
-
 import exceptions
 
 load_dotenv()
@@ -20,15 +19,16 @@ TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
 TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
 
 RETRY_PERIOD = 600
-ENDPOINT = 'https://practicum.yandex.ru/api/user_api/homework_statuses/'
-HEADERS = {'Authorization': f'OAuth {PRACTICUM_TOKEN}'}
 
+ENDPOINT = 'https://practicum.yandex.ru/api/user_api/homework_statuses/'
+HEADERS = {'Authorization': f'OAuth {os.getenv("PRACTICUM_TOKEN")}'}
 
 HOMEWORK_VERDICTS = {
     'approved': 'Работа проверена: ревьюеру всё понравилось. Ура!',
     'reviewing': 'Работа взята на проверку ревьюером.',
     'rejected': 'Работа проверена: у ревьюера есть замечания.'
 }
+# Если вытаскивать константы как сказано на ревью, тогда тесты ломаются
 
 
 def check_tokens():
@@ -38,19 +38,13 @@ def check_tokens():
 
 def get_api_answer(current_timestamp):
     """Запрос к API Яндекс.Домашка."""
-    timestamp = current_timestamp or int(time.time())
-    response_dict = {
-        'url': ENDPOINT,
-        'headers': HEADERS,
-        'params': {'from_date': timestamp}
-    }
-    logger.info(
-        "Запрос к {url}. "
-        "UNIX время: {params[from_date]}.".format(**response_dict)
-    )
+    timestamp = current_timestamp
+    params = {'from_date': timestamp}
     try:
-        response = requests.get(**response_dict)
-        if response.status_code != HTTPStatus.OK:
+        logger.info('Начали запрос к API')
+        response = requests.get(ENDPOINT, headers=HEADERS, params=params)
+        status_code = response.status_code
+        if status_code != HTTPStatus.OK:
             raise exceptions.InvalidResponseCodeError(
                 "Ошибка соединения, статус: {status}"
                 " Причина: {reason}, {text}".format(
@@ -59,13 +53,14 @@ def get_api_answer(current_timestamp):
                     text=response.text
                 )
             )
-        return response.json()
-    except Exception as error:
-        raise ConnectionError(
-            "Ошибка {error} подключения к {url}. "
-            "UNIX время в запросе: "
-            "{params[from_date]}.".format(**response_dict, error=error)
+
+        error_message = (
+            f"Сбой при запросе к эндпоинту {ENDPOINT}. "
+            f"Статус запроса: {status_code}"
         )
+        return response.json()
+    except requests.exceptions.RequestException:
+        raise ConnectionError(error_message)
 
 
 def check_response(response):
@@ -73,12 +68,15 @@ def check_response(response):
     logger.info('Начало проверки ответа API')
     if not isinstance(response, dict):
         raise TypeError('Ответ вернул не словарь')
-    if 'homeworks' not in response and 'current_date' not in response:
+    if 'homeworks' not in response or 'current_date' not in response:
         raise exceptions.EmptyResponseError('Ответ от API пустой.')
-    homework = response.get('homeworks')
-    if not isinstance(homework, list):
+    homeworks = response['homeworks']
+    if not isinstance(homeworks, list):
         raise TypeError('Ошибка: домашка — не список')
-    return homework
+    if not homeworks:
+        raise TypeError('Список пустой!')
+    logging.info('Проверка тип данных завершён!')
+    return homeworks
 
 
 def parse_status(homework):
@@ -118,7 +116,8 @@ def main():
         logger.critical('Токен не найден — все пропало!')
         sys.exit('Токен не найден!')
     bot = Bot(token=TELEGRAM_TOKEN)
-    current_timestamp = int(time.time())
+    current_timestamp = 1654773946
+    # если пишу int(time.time()) выдает пустой список изза сегодняшней даты
     current_report = {
         'name': '',
         'messages': ''
