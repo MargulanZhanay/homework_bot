@@ -9,6 +9,13 @@ from http import HTTPStatus
 from dotenv import load_dotenv
 from telegram import Bot
 
+from settings import (
+    RETRY_PERIOD,
+    HEADERS,
+    ENDPOINT,
+    HOMEWORK_VERDICTS,
+    TIMESTAMP
+)
 import exceptions
 
 load_dotenv()
@@ -17,18 +24,6 @@ logger = logging.getLogger(__name__)
 PRACTICUM_TOKEN = os.getenv('PRACTICUM_TOKEN')
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
 TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
-
-RETRY_PERIOD = 600
-
-ENDPOINT = 'https://practicum.yandex.ru/api/user_api/homework_statuses/'
-HEADERS = {'Authorization': f'OAuth {os.getenv("PRACTICUM_TOKEN")}'}
-
-HOMEWORK_VERDICTS = {
-    'approved': 'Работа проверена: ревьюеру всё понравилось. Ура!',
-    'reviewing': 'Работа взята на проверку ревьюером.',
-    'rejected': 'Работа проверена: у ревьюера есть замечания.'
-}
-# Если вытаскивать константы как сказано на ревью, тогда тесты ломаются
 
 
 def check_tokens():
@@ -42,7 +37,11 @@ def get_api_answer(current_timestamp):
     params = {'from_date': timestamp}
     try:
         logger.info('Начали запрос к API')
-        response = requests.get(ENDPOINT, headers=HEADERS, params=params)
+        response = requests.get(
+            ENDPOINT,
+            headers=HEADERS,
+            params=params
+        )
         status_code = response.status_code
         if status_code != HTTPStatus.OK:
             raise exceptions.InvalidResponseCodeError(
@@ -116,7 +115,7 @@ def main():
         logger.critical('Токен не найден — все пропало!')
         sys.exit('Токен не найден!')
     bot = Bot(token=TELEGRAM_TOKEN)
-    current_timestamp = 1654773946
+    current_timestamp = TIMESTAMP
     # если пишу int(time.time()) выдает пустой список изза сегодняшней даты
     current_report = {
         'name': '',
